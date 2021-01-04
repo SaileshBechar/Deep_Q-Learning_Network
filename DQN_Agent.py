@@ -27,18 +27,20 @@ class ReplayBuffer:
 		self.memory_counter = 0
 
 	def store_experience(self, state, action, reward, next_state, done):
-		self.replay_buffer.append([state, action, reward, next_state, done])
+		self.replay_buffer.append((np.array(state), action, reward, np.array(next_state), done))
 		self.memory_counter += 1
 
 	def sample_buffer(self, batch_size):
-		return random.choices(self.replay_buffer, k=batch_size)
+		sample_size = min(len(self.replay_buffer), batch_size)
+		samples = random.choices(self.replay_buffer, k=sample_size)
+		return map(list, zip(*samples))
 
 	def get_index(self, index):
 		return self.replay_buffer[index]
 
 class DQNAgent:
 	def __init__(self, learning_rate, num_actions, input_dimensions, discount_factor, batch_size, epsilon,
-					epsilon_decrement=0.9999, epsilon_min=0.01, replay_buffer_size=2000, file_name='dqn_model.h5'):
+					epsilon_decrement=0.9999, epsilon_min=0.01, replay_buffer_size=2000):
 
 		self.num_actions = num_actions
 		self.discount_factor = discount_factor
@@ -46,7 +48,6 @@ class DQNAgent:
 		self.epsilon = epsilon
 		self.epsilon_decrement = epsilon_decrement
 		self.epsilon_min = epsilon_min
-		self.file_name = file_name
 
 		self.Replay_Buffer = ReplayBuffer(replay_buffer_size)
 		self.dqn = build_dqn(learning_rate, num_actions, input_dimensions, 64, 64)
@@ -56,12 +57,13 @@ class DQNAgent:
 		self.Replay_Buffer.store_experience(state, action, reward, next_state, done)
 
 	def choose_action(self, state):
-		self.epsilon *= self.epsilon_decrement
-		self.epsilon = max(self.epsilon_min, self.epsilon)
-
+		# self.epsilon *= self.epsilon_decrement
+		# self.epsilon = max(self.epsilon_min, self.epsilon)
+		self.epsilon = max(self.epsilon_min, self.epsilon_decrement * self.epsilon)
 		if np.random.random() < self.epsilon or self.Replay_Buffer.memory_counter < self.batch_size:
 			action = random.randrange(self.num_actions)
 		else:
+			state = np.array([state], dtype=np.float32)
 			possible_actions = self.dqn.predict(state)
 			action = np.argmax(possible_actions[0])
 
@@ -70,25 +72,28 @@ class DQNAgent:
 	def train(self):
 		# print(self.Replay_Buffer.memory_counter)
 		if self.Replay_Buffer.memory_counter > self.batch_size:
-			samples = self.Replay_Buffer.sample_buffer(self.batch_size)
-			
-			for sample in samples: # Find best possible action from each experience in batch
-				state, action, reward, next_state, done = sample
-				target = self.target_network.predict(state)
-				if done:
-					target[0][action] = reward
-				else:
-					q_next = max(self.target_network.predict(next_state)[0])
-					target[0][action] = reward + q_next * self.discount_factor # Find best action based on max potential reward
-				self.dqn.fit(state, target, epochs=1, verbose=0)
+			states, actions, rewards, next_states, dones = self.Replay_Buffer.sample_buffer(self.batch_size) # Retrieves a batch_size amount of each val
+			states = np.array(states)
+			next_states = np.array(next_states)
+
+			q_eval_states = self.dqn.predict(states)
+			q_next_states = self.target_network.predict(next_states)
+
+			q_next_states[dones] = np.zeros([self.num_actions])
+			q_target = q_eval_states[:]
+			indices = np.arange(self.batch_size)
+			q_target[indices, actions] = rewards + self.discount_factor * np.max(q_next_states, axis=1)
+
+			self.dqn.train_on_batch(states, q_target)
 
 	def train_target_network(self):
 		# Hyper parameter, adjust weights of target network by weights[i] * self.tau + target_weights[i] * (1 - self.tau)
 		self.target_network.set_weights(self.dqn.get_weights()) 
 
-	def save_model(self):
-		self.dqn.save(self.file_name)		
+	def save_model(self, file_name):
+		self.dqn.save(file_name)		
 
-	def load_model(self):
-		self.dqn = load_model(self.file_name)
+	@staticmethod
+	def load_model(self, file_name):
+		return load_model(file_name)
 
