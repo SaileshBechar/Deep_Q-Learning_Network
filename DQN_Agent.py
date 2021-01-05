@@ -40,7 +40,7 @@ class ReplayBuffer:
 
 class DQNAgent:
 	def __init__(self, learning_rate, num_actions, input_dimensions, discount_factor, batch_size, epsilon,
-					epsilon_decrement=0.9999, epsilon_min=0.01, replay_buffer_size=2000):
+					epsilon_decrement=0.99, epsilon_min=0.01, replay_buffer_size=1_000_000):
 
 		self.num_actions = num_actions
 		self.discount_factor = discount_factor
@@ -60,7 +60,7 @@ class DQNAgent:
 		# self.epsilon *= self.epsilon_decrement
 		# self.epsilon = max(self.epsilon_min, self.epsilon)
 		self.epsilon = max(self.epsilon_min, self.epsilon_decrement * self.epsilon)
-		if np.random.random() < self.epsilon or self.Replay_Buffer.memory_counter < self.batch_size:
+		if np.random.random() < self.epsilon:
 			action = random.randrange(self.num_actions)
 		else:
 			state = np.array([state], dtype=np.float32)
@@ -93,7 +93,7 @@ class DQNAgent:
 	def save_model(self, file_name):
 		self.dqn.save(file_name)		
 
-	@staticmethod
 	def load_model(self, file_name):
-		return load_model(file_name)
+		self.dqn = load_model(file_name)
+		self.target_network = load_model(file_name)
 

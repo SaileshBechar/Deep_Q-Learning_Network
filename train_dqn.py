@@ -1,14 +1,17 @@
 from DQN_Agent import DQNAgent
+from pathlib import Path
 import matplotlib.pyplot as plt
 import numpy as np
 import gym
 import time
 
-def plot_learning(x_data, score_data, epsilon_data):
+def plot_learning(x_data, score_data, avg_data, epsilon_data):
 	fig, axs = plt.subplots(2, sharex=True)
 	fig.suptitle('DQN results for ' + GYM_NAME)
 
-	axs[0].scatter(x_data, score_data, c='tab:orange')
+	axs[0].scatter(x_data, score_data, c='tab:orange', label='Score')
+	axs[0].plot(x_data, avg_data, label='Avg of last 100 scores')
+	axs[0].legend()
 	axs[0].set_ylabel("Score")
 	axs[1].plot(x_data, epsilon_data)
 	axs[1].set_ylabel("Eplison")
@@ -18,7 +21,7 @@ def plot_learning(x_data, score_data, epsilon_data):
 	for ax in fig.get_axes():
 		ax.label_outer()
 
-	plt.savefig(GYM_NAME + time.strftime("%Y%m%d-%H%M%S") + '.png')
+	plt.savefig(folder + filename + '_' + str(len(x_data)) + '.png')
 
 list_of_gyms = [
 	'Acrobot-v1',
@@ -27,7 +30,7 @@ list_of_gyms = [
 	'LunarLander-v2'
 ]
 
-GYM_NAME = list_of_gyms[0]
+GYM_NAME = list_of_gyms[2]
 env = gym.make(GYM_NAME)
 
 num_states = env.observation_space.shape[0]
@@ -42,8 +45,11 @@ num_trials = 500
 DQN_Agent = DQNAgent(learning_rate=learning_rate, num_actions=num_actions, input_dimensions=num_states,
 				discount_factor=gamma, epsilon=epsilon, batch_size=batch_size)
 
-filename = 'dqn_weights_' + GYM_NAME + '.h5f'
+folder = GYM_NAME + '_' + time.strftime("%Y%m%d-%H%M%S") + '/'
+Path(folder).mkdir(parents=True, exist_ok=True)
+filename = 'dqn_weights_' + GYM_NAME
 scores = []
+avg_scores = []
 epsilons = []	
 start_time = time.time()
 
@@ -70,10 +76,11 @@ for trial in range(num_trials):
 	avg_score = np.mean(scores[max(0, trial-100):(trial+1)])
 	print('Trial number {}":'.format(trial), 'score: %.2f' % score,
 	' average score %.2f' % avg_score)
+	avg_scores.append(avg_score)
 
-	if trial % 100 == 0:
-		DQN_Agent.save_model(filename)
+	if trial % 10 == 0:
+		DQN_Agent.save_model(folder + filename + '.h5')
 		x_data = [i+1 for i in range(trial + 1)]
-		plot_learning(x_data, scores, epsilons)
+		plot_learning(x_data, scores, avg_scores, epsilons)
 
 print("--- Trained in %s seconds ---" % (time.time() - start_time))
