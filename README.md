@@ -28,7 +28,7 @@
 
 
 ### Plots
-The first plot has the score achieved in each trial plotted in orange with the average of the last 100 scores plotted in blue.
+The first plot has the score achieved in each trial plotted in orange with the average of the last 100 scores plotted in blue.  
 The second plot describes the maximum Q (action-value) of each step, where the average for each trial is one point. This represents how confident the model is for a chosen action and is a more reliable metric for its learning as opposed to the noisy score values. [Reference](https://www.cs.toronto.edu/~vmnih/docs/dqn.pdf)  
 The third plot represents the probability to chose random actions with the epsilon-greedy approach. This is a solution to the problem of exploration vs. exploitation or when to try a different, unconventional move in hopes of finding a better solution.
 
