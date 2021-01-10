@@ -1,2 +1,5 @@
-*.hdf
-*.png
+LunarLander-v2/*
+Acrobot-v1/*
+CartPole-v1/*
+MountainCar-v0/*
+__pycache__/*

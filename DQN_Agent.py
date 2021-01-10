@@ -48,29 +48,29 @@ class DQNAgent:
 		self.epsilon = epsilon
 		self.epsilon_decrement = epsilon_decrement
 		self.epsilon_min = epsilon_min
-
+		self.learning_step = 0
+		self.q_vals = []
 		self.Replay_Buffer = ReplayBuffer(replay_buffer_size)
-		self.dqn = build_dqn(learning_rate, num_actions, input_dimensions, 64, 64)
-		self.target_network = build_dqn(learning_rate, num_actions, input_dimensions, 64, 64) # Trick to improve convergence by allowing the network to now approximate a static destination
+		self.dqn = build_dqn(learning_rate, num_actions, input_dimensions, 512, 512)
+		self.target_network = build_dqn(learning_rate, num_actions, input_dimensions, 512, 512) # Trick to improve convergence by allowing the network to now approximate a static destination
 
 	def remember_experience(self, state, action, reward, next_state, done):
 		self.Replay_Buffer.store_experience(state, action, reward, next_state, done)
 
 	def choose_action(self, state):
-		# self.epsilon *= self.epsilon_decrement
-		# self.epsilon = max(self.epsilon_min, self.epsilon)
 		self.epsilon = max(self.epsilon_min, self.epsilon_decrement * self.epsilon)
+		state = np.array([state], dtype=np.float32)
+		possible_actions = self.dqn.predict(state)
+		self.q_vals.append(np.max(possible_actions[0]))
+
 		if np.random.random() < self.epsilon:
 			action = random.randrange(self.num_actions)
 		else:
-			state = np.array([state], dtype=np.float32)
-			possible_actions = self.dqn.predict(state)
 			action = np.argmax(possible_actions[0])
 
 		return action
 
 	def train(self):
-		# print(self.Replay_Buffer.memory_counter)
 		if self.Replay_Buffer.memory_counter > self.batch_size:
 			states, actions, rewards, next_states, dones = self.Replay_Buffer.sample_buffer(self.batch_size) # Retrieves a batch_size amount of each val
 			states = np.array(states)
@@ -82,12 +82,11 @@ class DQNAgent:
 			q_next_states[dones] = np.zeros([self.num_actions])
 			q_target = q_eval_states[:]
 			indices = np.arange(self.batch_size)
-			q_target[indices, actions] = rewards + self.discount_factor * np.max(q_next_states, axis=1)
+			q_target[indices, actions] = rewards + self.discount_factor * np.max(q_next_states, axis=1) 
 
-			self.dqn.train_on_batch(states, q_target)
+			self.dqn.fit(states, q_target, verbose=0)
 
 	def train_target_network(self):
-		# Hyper parameter, adjust weights of target network by weights[i] * self.tau + target_weights[i] * (1 - self.tau)
 		self.target_network.set_weights(self.dqn.get_weights()) 
 
 	def save_model(self, file_name):
